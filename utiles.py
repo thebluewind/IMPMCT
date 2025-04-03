@@ -54,7 +54,25 @@ def geo2lonlat_uv(lon, lat, u, v, t=3600):
     pred_lat = np.rad2deg(lat+(v / R) * t)
     pred_lon = np.rad2deg(lon + (u / v) * np.arctanh(np.sin(lat+(v / R) * t)) - (u / v) * np.arctanh(np.sin(lat)))
     return pred_lon,pred_lat
-
+#将实际地理移动距离转换为经纬度，支持向量操作
+def geo2lonlat(central_lon,central_lat,distance_x,distance_y):
+    #位移不变的经纬度转换
+    earth_radius = 6370856#m
+    lats = distance_y/(2*np.pi*earth_radius)*360+central_lat
+    lon_diff = distance_x/(2*np.pi*earth_radius*np.cos(central_lat/180*np.pi))*360
+    return central_lon+lon_diff,lats
+# 生成东北方向的网格点
+def generate_rotated_grid(central_lon, central_lat, u, v, grid_size=50, distance=20000):
+    points = np.concatenate([-distance*np.array(range(1,grid_size//2+1))[::-1],np.array([0]),distance*np.array(range(1,grid_size//2+1))])
+    X, Y = np.meshgrid(points, points)
+    # 创建旋转矩阵
+    rotation_matrix = np.array([[u, -v],
+                                [v, u]])
+    # 旋转每个点，XY_rotated是旋转后以central_lon, central_lat为中心的自然坐标也就是地理距离
+    XY_rotated = np.dot(rotation_matrix, np.array([X.flatten(), Y.flatten()]))
+    # 计算旋转后的点的经纬度，此时得到的经纬度
+    lon_grid, lat_grid = geo2lonlat(central_lon, central_lat, XY_rotated[0], XY_rotated[1])
+    return lon_grid, lat_grid, XY_rotated[0]/1000, XY_rotated[1]/1000
 #找到以某个点为中心，r距离内的格点---------------------------------------------------------------------------------------------------------------------------------
 def find_r_points(r,central_lon,central_lat,lons,lats):
     lon_grid,lat_grid = np.meshgrid(lons.values,lats.values,indexing = 'xy')
